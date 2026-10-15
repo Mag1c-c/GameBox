@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>消方块</title>
+<script src="theme.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  :root, [data-theme="dark"] {
+    --bg: #1a1a2e;
+    --bg-secondary: #16213e;
+    --bg-tertiary: #1f2b4d;
+    --bg-elevated: #2a3a66;
+    --border: #2a3a66;
+    --text: #ffffff;
+    --text-secondary: #7a8ab8;
+    --text-tertiary: #cfd8f0;
+    --accent: #e94560;
+    --accent-dark: #c73550;
+    --overlay-bg: rgba(10, 15, 30, 0.85);
+    --toggle-bg: #2a3a66;
+    --toggle-off: #2a3a66;
+  }
+  [data-theme="light"] {
+    --bg: #f2f2f7;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #ffffff;
+    --bg-elevated: #e8e8f0;
+    --border: #d8d8e2;
+    --text: #1a1a2e;
+    --text-secondary: #6a6a8a;
+    --text-tertiary: #4a4a6a;
+    --accent: #e94560;
+    --accent-dark: #c73550;
+    --overlay-bg: rgba(245, 245, 250, 0.92);
+    --toggle-bg: #c8c8d8;
+    --toggle-off: #c8c8d8;
+  }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    user-select: none;
+    -webkit-user-select: none;
+    overflow-x: hidden;
+    padding: 20px 0;
+    transition: background 0.3s, color 0.3s;
+  }
+  .game-header {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    align-items: center;
+    padding: 0 20px 12px;
+    gap: 12px;
+  }
+  .back-btn {
+    background: var(--bg-tertiary);
+    border: 1.5px solid var(--border);
+    color: var(--text-tertiary);
+    border-radius: 12px;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s, border-color 0.15s;
+    touch-action: manipulation;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .back-btn:hover { border-color: var(--accent); }
+  .back-btn:active { transform: scale(0.96); }
+  .game-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--accent);
+    letter-spacing: 1px;
+    flex: 1;
+  }
+  .menu-btn {
+    background: var(--bg-tertiary);
+    border: 1.5px solid var(--border);
+    color: var(--text-tertiary);
+    border-radius: 12px;
+    width: 40px;
+    height: 38px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s, border-color 0.15s;
+    touch-action: manipulation;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .menu-btn:hover { border-color: var(--accent); }
+  .menu-btn:active { transform: scale(0.94); }
+
+  .subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .score {
+    font-size: 26px;
+    font-weight: bold;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+
+  /* 游戏棋盘区域固定深色，不随主题变化 */
+  #fangkuai-area {
+    position: relative;
+    width: 340px;
+    height: 740px;
+    background: #16213e;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 3px solid #0f3460;
+    cursor: pointer;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #fangkuai-area.alarm { box-shadow: inset 0 0 30px rgba(233, 69, 96, 0.8); }
+  #fangkuai-rows {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    will-change: transform;
+  }
+  .fk-row { display: grid; grid-template-columns: repeat(4, 1fr); height: 37px; }
+  .fk-tile { margin: 2px; border-radius: 5px; }
+  .fk-tile.blue { background: #2196F3; }
+  .fk-tile.orange { background: #FF9800; }
+  .fk-tile.orange.cracked { background: #FF9800; position: relative; }
+  .fk-tile.orange.cracked::after {
+    content: '';
+    position: absolute;
+    top: 15%; left: 15%; width: 70%; height: 70%;
+    background: 
+      linear-gradient(45deg, transparent 46%, rgba(255,255,255,0.9) 49%, rgba(255,255,255,0.9) 51%, transparent 54%),
+      linear-gradient(-45deg, transparent 46%, rgba(255,255,255,0.9) 49%, rgba(255,255,255,0.9) 51%, transparent 54%);
+    border-radius: 3px;
+  }
+  .fk-tile.empty { background: transparent; }
+  .fk-bullet {
+    position: absolute;
+    width: 81px;
+    height: 33px;
+    background: #4CAF50;
+    border-radius: 5px;
+    z-index: 10;
+    will-change: transform, top;
+  }
+  .fk-particle {
+    position: absolute;
+    pointer-events: none;
+    z-index: 20;
+    animation: flyOut 0.6s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
+  }
+  @keyframes flyOut {
+    0% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
+    100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.15) rotate(var(--rot)); opacity: 0; }
+  }
+  .fk-ring {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 19;
+    animation: ringExpand 0.4s ease-out forwards;
+  }
+  @keyframes ringExpand {
+    0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0.9; }
+    100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+  }
+
+  .game-over-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--overlay-bg);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .game-over-overlay.show { opacity: 1; pointer-events: auto; }
+  .game-over-card {
+    background: var(--bg-tertiary);
+    border-radius: 20px;
+    padding: 30px 40px;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    border: 2px solid var(--border);
+    transform: scale(0.85);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .game-over-overlay.show .game-over-card { transform: scale(1); }
+  .game-over-title { font-size: 24px; font-weight: bold; color: var(--accent); margin-bottom: 8px; letter-spacing: 2px; }
+  .game-over-subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; }
+  .game-over-score { font-size: 48px; font-weight: bold; color: var(--text); margin-bottom: 4px; line-height: 1; }
+  .game-over-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; }
+  .game-over-divider { height: 1px; background: var(--border); margin: 20px 0; }
+  .game-over-highscore { font-size: 15px; color: #FFC107; margin-bottom: 24px; }
+  .restart-btn {
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 14px 44px;
+    font-size: 17px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(233, 69, 96, 0.4);
+    transition: transform 0.15s, box-shadow 0.15s;
+    font-family: inherit;
+    letter-spacing: 1px;
+    touch-action: none;
+  }
+  .restart-btn:hover { transform: translateY(-2px); }
+  .restart-btn:active { transform: translateY(0) scale(0.97); }
+
+  /* 设置弹窗 */
+  .settings-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--overlay-bg);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .settings-overlay.show { opacity: 1; pointer-events: auto; }
+  .settings-card {
+    background: var(--bg-tertiary);
+    border-radius: 20px;
+    padding: 26px 28px;
+    width: 320px;
+    max-width: 86vw;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    border: 2px solid var(--border);
+    transform: scale(0.9);
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .settings-overlay.show .settings-card { transform: scale(1); }
+  .settings-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--accent);
+    text-align: center;
+    margin-bottom: 18px;
+    letter-spacing: 2px;
+  }
+  .settings-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 15px;
+    color: var(--text);
+  }
+  .settings-row:last-of-type { border-bottom: none; }
+  .settings-close {
+    display: block;
+    margin: 20px auto 0;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 40px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 16px rgba(233, 69, 96, 0.4);
+    touch-action: manipulation;
+  }
+  .settings-close:active { transform: scale(0.96); }
+
+  .toggle-switch {
+    position: relative;
+    width: 46px;
+    height: 26px;
+    background: var(--toggle-off);
+    border-radius: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+    touch-action: manipulation;
+    flex-shrink: 0;
+  }
+  .toggle-switch.on { background: var(--accent); }
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 22px;
+    height: 22px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+  .toggle-switch.on::after { transform: translateX(20px); }
+
+  .difficulty-group { display: flex; gap: 6px; }
+  .diff-btn {
+    background: var(--bg-elevated);
+    border: 1.5px solid transparent;
+    color: var(--text-tertiary);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: bold;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    touch-action: manipulation;
+  }
+  .diff-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .diff-btn:active { transform: scale(0.94); }
+</style>
+</head>
+<body>
+  <div class="game-header">
+    <a class="back-btn" href="index.html">← 返回</a>
+    <div class="game-title">消方块</div>
+    <button class="menu-btn" onclick="openFkSettings()">☰</button>
+  </div>
+  <div class="subtitle">点击任意一列发射方块，填满一行4格即可消除！</div>
+  <div class="score" id="fk-score">得分: 0</div>
+  
+  <div id="fangkuai-area">
+    <div id="fangkuai-rows"></div>
+    <div class="game-over-overlay" id="fk-overlay">
+      <div class="game-over-card">
+        <div class="game-over-title">游戏结束</div>
+        <div class="game-over-subtitle">GAME OVER</div>
+        <div class="game-over-score" id="fk-final-score">0</div>
+        <div class="game-over-label">最终得分</div>
+        <div class="game-over-divider"></div>
+        <div class="game-over-highscore" id="fk-highscore-display">👑 最高分: 0</div>
+        <button class="restart-btn" id="fk-restart-btn">再来一局</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-overlay" id="fk-settings-overlay">
+    <div class="settings-card">
+      <div class="settings-title">消方块设置</div>
+      <div class="settings-row">
+        <span>音效</span>
+        <div class="toggle-switch on" id="fk-sound-toggle" onclick="toggleFkSound()"></div>
+      </div>
+      <div class="settings-row">
+        <span>下落速度</span>
+        <div class="difficulty-group">
+          <button class="diff-btn" data-diff="easy" onclick="setFkDifficulty('easy')">慢</button>
+          <button class="diff-btn active" data-diff="normal" onclick="setFkDifficulty('normal')">正常</button>
+          <button class="diff-btn" data-diff="hard" onclick="setFkDifficulty('hard')">快</button>
+        </div>
+      </div>
+      <button class="settings-close" onclick="closeFkSettings()">关闭</button>
+    </div>
+  </div>
+
+<script>
+/* ==========================================
+   消方块
+   ========================================== */
+const COLS = 4;
+const DISPLAY_ROWS = 20;
+const MAX_ROWS = DISPLAY_ROWS + 1;
+const ROW_HEIGHT = 37;
+const ALARM_DURATION = 700;
+
+const DIFFICULTY = {
+  easy:   { base: 28, max: 90 },
+  normal: { base: 37, max: 130 },
+  hard:   { base: 50, max: 180 }
+};
+
+let grid = [];
+let score = 0;
+let gameRunning = true;
+let paused = false;
+let pauseStartTime = 0;
+let flyingBullets = [];
+let visualOffset = 0;
+let currentSpeed = 37;
+let baseSpeed = 37;
+let maxSpeed = 130;
+let lastFrameTime = 0;
+let startTime = 0;
+let alarmStartTime = null;
+let rafId = null;
+let highScore = parseInt(localStorage.getItem('blockGameHighScore') || '0', 10);
+
+let soundEnabled = localStorage.getItem('fk_sound') !== '0';
+let difficulty = localStorage.getItem('fk_difficulty') || 'normal';
+
+const area = document.getElementById('fangkuai-area');
+const rows = document.getElementById('fangkuai-rows');
+const scoreEl = document.getElementById('fk-score');
+const overlay = document.getElementById('fk-overlay');
+const finalScoreEl = document.getElementById('fk-final-score');
+const highscoreEl = document.getElementById('fk-highscore-display');
+const restartBtn = document.getElementById('fk-restart-btn');
+
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+}
+
+function playBreakSound() {
+  if (!soundEnabled || !audioCtx) return;
+  const t = audioCtx.currentTime;
+  const duration = 0.25 + Math.random() * 0.1;
+  const bufferSize = Math.floor(audioCtx.sampleRate * duration);
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+  }
+  const source = audioCtx.createBufferSource();
+  source.buffer = buffer;
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'highpass';
+  filter.frequency.setValueAtTime(1800 + Math.random() * 800, t);
+  filter.Q.value = 0.8;
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(0.18, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+  source.connect(filter);
+  filter.connect(gain);
+  gain.connect(audioCtx.destination);
+  source.start(t);
+  source.stop(t + duration);
+
+  const osc = audioCtx.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(180 + Math.random() * 60, t);
+  osc.frequency.exponentialRampToValueAtTime(50, t + 0.15);
+  const oscGain = audioCtx.createGain();
+  oscGain.gain.setValueAtTime(0.12, t);
+  oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+  osc.connect(oscGain);
+  oscGain.connect(audioCtx.destination);
+  osc.start(t);
+  osc.stop(t + 0.15);
+}
+
+function playGameOverSound() {
+  if (!soundEnabled || !audioCtx) return;
+  const t = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(400, t);
+  osc.frequency.exponentialRampToValueAtTime(80, t + 0.6);
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(0.25, t);
+  gain.gain.exponentialRampToValueAtTime(0.01, t + 0.6);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(t);
+  osc.stop(t + 0.6);
+}
+
+function createParticles(row, col, color, count) {
+  const colWidth = area.clientWidth / COLS;
+  const centerX = col * colWidth + colWidth / 2;
+  const baseY = row * ROW_HEIGHT + ROW_HEIGHT / 2;
+  const centerY = baseY + visualOffset - ROW_HEIGHT;
+
+  const ring = document.createElement('div');
+  ring.className = 'fk-ring';
+  ring.style.left = centerX + 'px';
+  ring.style.top = centerY + 'px';
+  ring.style.width = '24px';
+  ring.style.height = '24px';
+  ring.style.border = '2px solid ' + color;
+  area.appendChild(ring);
+  setTimeout(() => ring.remove(), 400);
+
+  const variants = getColorVariants(color);
+
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('div');
+    p.className = 'fk-particle';
+    const isRound = Math.random() < 0.3;
+    const size = 4 + Math.random() * 8;
+    if (isRound) {
+      p.style.borderRadius = '50%';
+      p.style.width = (size * 0.6) + 'px';
+      p.style.height = (size * 0.6) + 'px';
+    } else {
+      p.style.borderRadius = '1.5px';
+      p.style.width = size + 'px';
+      p.style.height = size + 'px';
+    }
+    p.style.backgroundColor = variants[Math.floor(Math.random() * variants.length)];
+    p.style.left = centerX + 'px';
+    p.style.top = centerY + 'px';
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 25 + Math.random() * 70;
+    p.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+    p.style.setProperty('--dy', Math.sin(angle) * dist + 'px');
+    p.style.setProperty('--rot', (Math.random() * 720 - 360) + 'deg');
+    area.appendChild(p);
+    setTimeout(() => p.remove(), 600);
+  }
+}
+
+function getColorVariants(hex) {
+  const hex2rgb = (h) => {
+    const n = parseInt(h.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  };
+  const rgb2hex = (r, g, b) => '#' + [r, g, b].map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
+  const [r, g, b] = hex2rgb(hex);
+  return [hex, rgb2hex(r + 60, g + 60, b + 60), rgb2hex(r - 40, g - 40, b - 40), rgb2hex(r + 100, g + 100, b + 100)];
+}
+
+function renderAll() {
+  rows.innerHTML = '';
+  for (let r = 0; r < MAX_ROWS; r++) {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'fk-row';
+    for (let c = 0; c < COLS; c++) {
+      const tile = document.createElement('div');
+      tile.className = 'fk-tile';
+      const val = grid[r][c];
+      if (val === 1) tile.classList.add('blue');
+      else if (val === 2) tile.classList.add('orange');
+      else if (val === 3) tile.classList.add('orange', 'cracked');
+      else tile.classList.add('empty');
+      rowEl.appendChild(tile);
+    }
+    rows.appendChild(rowEl);
+  }
+}
+
+function shiftGridDown() {
+  grid.pop();
+  const emptyCol = Math.floor(Math.random() * COLS);
+  const rowColor = Math.random() < 0.5 ? 1 : 2;
+  const newRow = [];
+  for (let c = 0; c < COLS; c++) {
+    newRow.push(c === emptyCol ? 0 : rowColor);
+  }
+  grid.unshift(newRow);
+  for (let b of flyingBullets) b.targetRow++;
+  renderAll();
+}
+
+function simulateFutureGrid() {
+  let simGrid = grid.map(row => [...row]);
+  let simBullets = flyingBullets.map(b => ({ col: b.col, targetRow: b.targetRow }));
+
+  for (let i = 0; i < simBullets.length; i++) {
+    const b = simBullets[i];
+    const finalRow = b.targetRow;
+    const finalCol = b.col;
+    if (finalRow < 0 || finalRow >= MAX_ROWS) continue;
+
+    let otherValues = [];
+    for (let c = 0; c < COLS; c++) {
+      if (c !== finalCol && simGrid[finalRow][c] > 0) otherValues.push(simGrid[finalRow][c]);
+    }
+
+    if (otherValues.length === 0) {
+      simGrid[finalRow][finalCol] = 1;
+    } else if (otherValues.length > 0 && otherValues.every(v => v === 2)) {
+      for (let c = 0; c < COLS; c++) {
+        if (simGrid[finalRow][c] === 2) simGrid[finalRow][c] = 3;
+      }
+      continue;
+    } else {
+      simGrid[finalRow][finalCol] = 1;
+    }
+
+    if (simGrid[finalRow].every(v => v > 0)) {
+      for (let r = finalRow; r < MAX_ROWS - 1; r++) {
+        simGrid[r] = [...simGrid[r + 1]];
+      }
+      simGrid[MAX_ROWS - 1] = [0, 0, 0, 0];
+      for (let j = i + 1; j < simBullets.length; j++) {
+        if (simBullets[j].targetRow > finalRow) simBullets[j].targetRow--;
+      }
+    }
+  }
+  return simGrid;
+}
+
+function gameLoop(time) {
+  if (!gameRunning) { rafId = null; return; }
+
+  // 【新增】暂停处理
+  if (paused) {
+    if (pauseStartTime === 0) pauseStartTime = time;
+    lastFrameTime = time;
+    rafId = requestAnimationFrame(gameLoop);
+    return;
+  }
+  if (pauseStartTime > 0) {
+    // 恢复：把暂停时长补偿到 startTime，避免时间跳变
+    startTime += time - pauseStartTime;
+    lastFrameTime = time;
+    pauseStartTime = 0;
+  }
+
+  if (!lastFrameTime) {
+    lastFrameTime = time;
+    startTime = time;
+  }
+  const dt = (time - lastFrameTime) / 1000;
+  lastFrameTime = time;
+
+  const elapsed = (time - startTime) / 1000;
+  currentSpeed = Math.min(maxSpeed, baseSpeed + elapsed * 2);
+  visualOffset += currentSpeed * dt;
+
+  while (visualOffset >= ROW_HEIGHT) {
+    visualOffset -= ROW_HEIGHT;
+    shiftGridDown();
+  }
+
+  rows.style.transform = `translateY(${visualOffset - ROW_HEIGHT}px)`;
+
+  const now = performance.now();
+  for (let i = flyingBullets.length - 1; i >= 0; i--) {
+    const b = flyingBullets[i];
+    const t = Math.min(1, (now - b.startTime) / b.duration);
+    const endBaseTop = b.targetRow * ROW_HEIGHT;
+    const baseTop = b.startBaseTop + (endBaseTop - b.startBaseTop) * t;
+    b.element.style.top = baseTop + 'px';
+    b.element.style.transform = `translateY(${visualOffset - ROW_HEIGHT}px)`;
+
+    if (t >= 1) {
+      flyingBullets.splice(i, 1);
+      if (area.contains(b.element)) area.removeChild(b.element);
+      handleBulletLanding(b);
+    }
+  }
+
+  const bottomHasBlocks = grid[MAX_ROWS - 1].some(v => v > 0);
+  if (bottomHasBlocks) {
+    area.classList.add('alarm');
+    if (alarmStartTime === null) alarmStartTime = time;
+    else if (time - alarmStartTime > ALARM_DURATION) {
+      gameOver();
+      return;
+    }
+  } else {
+    area.classList.remove('alarm');
+    alarmStartTime = null;
+  }
+
+  rafId = requestAnimationFrame(gameLoop);
+}
+
+function handleBulletLanding(b) {
+  const finalRow = b.targetRow;
+  const finalCol = b.col;
+  if (finalRow < 0 || finalRow >= MAX_ROWS) return;
+
+  let otherValues = [];
+  for (let c = 0; c < COLS; c++) {
+    if (c !== finalCol && grid[finalRow][c] > 0) otherValues.push(grid[finalRow][c]);
+  }
+
+  if (otherValues.length === 0) {
+    grid[finalRow][finalCol] = 1;
+  } else if (otherValues.every(v => v === 2)) {
+    for (let c = 0; c < COLS; c++) {
+      if (grid[finalRow][c] === 2) {
+        grid[finalRow][c] = 3;
+        createParticles(finalRow, c, '#FF9800', 6);
+      }
+    }
+    playBreakSound();
+  } else {
+    grid[finalRow][finalCol] = 1;
+  }
+
+  if (grid[finalRow].every(v => v > 0)) {
+    const rowVals = [...grid[finalRow]];
+    for (let c = 0; c < COLS; c++) {
+      if (rowVals[c] === 1) createParticles(finalRow, c, '#2196F3', 12);
+      else if (rowVals[c] === 3) createParticles(finalRow, c, '#FF9800', 16);
+    }
+    playBreakSound();
+    clearRow(finalRow);
+  }
+
+  renderAll();
+}
+
+function clearRow(rowIndex) {
+  let rowScore = 0;
+  for (let c = 0; c < COLS; c++) {
+    rowScore += grid[rowIndex][c] === 1 ? 10 : 20;
+  }
+  score += rowScore;
+  scoreEl.innerText = '得分: ' + score;
+
+  for (let r = rowIndex; r < MAX_ROWS - 1; r++) {
+    grid[r] = [...grid[r + 1]];
+  }
+  grid[MAX_ROWS - 1] = [0, 0, 0, 0];
+}
+
+function shoot(col) {
+  const futureGrid = simulateFutureGrid();
+  let lowestOccupiedRow = -1;
+  for (let r = MAX_ROWS - 1; r >= 0; r--) {
+    if (futureGrid[r][col] > 0) { lowestOccupiedRow = r; break; }
+  }
+
+  let targetRow;
+  if (lowestOccupiedRow !== -1) {
+    targetRow = lowestOccupiedRow + 1;
+    if (targetRow >= MAX_ROWS) return;
+  } else {
+    targetRow = 0;
+  }
+
+  const bulletEl = document.createElement('div');
+  bulletEl.className = 'fk-bullet';
+  const colWidth = area.clientWidth / COLS;
+  bulletEl.style.left = (col * colWidth) + 'px';
+  const startBaseTop = MAX_ROWS * ROW_HEIGHT;
+  bulletEl.style.top = startBaseTop + 'px';
+  bulletEl.style.transform = `translateY(${visualOffset - ROW_HEIGHT}px)`;
+  area.appendChild(bulletEl);
+
+  flyingBullets.push({
+    col: col,
+    targetRow: targetRow,
+    element: bulletEl,
+    startTime: performance.now(),
+    duration: 250,
+    startBaseTop: startBaseTop
+  });
+}
+
+area.addEventListener('pointerdown', (e) => {
+  initAudio();
+  if (!gameRunning || paused) return;
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  const rect = area.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const col = Math.floor(x / (rect.width / COLS));
+  if (col >= 0 && col < COLS) shoot(col);
+});
+
+restartBtn.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  initAudio();
+  overlay.classList.remove('show');
+  setTimeout(() => startGame(), 200);
+});
+
+/* 设置面板（点击时暂停） */
+function openFkSettings() {
+  paused = true;
+  document.getElementById('fk-settings-overlay').classList.add('show');
+}
+function closeFkSettings() {
+  document.getElementById('fk-settings-overlay').classList.remove('show');
+  // 恢复时交给 gameLoop 里的 pauseStartTime 逻辑
+  // 但需要等一帧让 pauseStartTime 生效，下一帧会处理
+  // 直接取消 paused 状态即可，gameLoop 下一次会补偿时间
+  paused = false;
+}
+function toggleFkSound() {
+  soundEnabled = !soundEnabled;
+  localStorage.setItem('fk_sound', soundEnabled ? '1' : '0');
+  document.getElementById('fk-sound-toggle').classList.toggle('on', soundEnabled);
+}
+function setFkDifficulty(diff) {
+  difficulty = diff;
+  localStorage.setItem('fk_difficulty', diff);
+  document.querySelectorAll('#fk-settings-overlay .diff-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.diff === diff);
+  });
+  const params = DIFFICULTY[diff];
+  baseSpeed = params.base;
+  maxSpeed = params.max;
+}
+
+function gameOver() {
+  gameRunning = false;
+  if (rafId) cancelAnimationFrame(rafId);
+  area.classList.remove('alarm');
+  playGameOverSound();
+
+  const isNewRecord = score > highScore;
+  if (isNewRecord) {
+    highScore = score;
+    localStorage.setItem('blockGameHighScore', highScore);
+  }
+
+  finalScoreEl.innerText = score;
+  if (isNewRecord) {
+    highscoreEl.innerHTML = '🎉 新纪录！' + highScore;
+  } else {
+    highscoreEl.innerHTML = '👑 最高分: ' + highScore;
+  }
+  overlay.classList.add('show');
+}
+
+function startGame() {
+  const params = DIFFICULTY[difficulty];
+  baseSpeed = params.base;
+  maxSpeed = params.max;
+  currentSpeed = baseSpeed;
+
+  grid = [];
+  for (let i = 0; i < MAX_ROWS; i++) grid.push([0, 0, 0, 0]);
+
+  for (let i = 0; i < 4; i++) {
+    const emptyCol = Math.floor(Math.random() * COLS);
+    const rowColor = Math.random() < 0.5 ? 1 : 2;
+    for (let c = 0; c < COLS; c++) {
+      grid[i][c] = c === emptyCol ? 0 : rowColor;
+    }
+  }
+
+  for (let b of flyingBullets) {
+    if (area.contains(b.element)) area.removeChild(b.element);
+  }
+  flyingBullets = [];
+
+  score = 0;
+  gameRunning = true;
+  paused = false;
+  pauseStartTime = 0;
+  visualOffset = 0;
+  lastFrameTime = 0;
+  startTime = 0;
+  alarmStartTime = null;
+
+  scoreEl.innerText = '得分: 0';
+  area.classList.remove('alarm');
+  overlay.classList.remove('show');
+
+  renderAll();
+  rows.style.transform = `translateY(${-ROW_HEIGHT}px)`;
+
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(gameLoop);
+}
+
+(function initUI() {
+  document.getElementById('fk-sound-toggle').classList.toggle('on', soundEnabled);
+  document.querySelectorAll('#fk-settings-overlay .diff-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.diff === difficulty);
+  });
+})();
+
+startGame();
+</script>
+</body>
+</html>

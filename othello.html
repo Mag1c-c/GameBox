@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>黑白翻转棋</title>
+<script src="theme.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  :root, [data-theme="dark"] {
+    --bg: #1a1a2e;
+    --bg-secondary: #16213e;
+    --bg-tertiary: #1f2b4d;
+    --bg-elevated: #2a3a66;
+    --border: #2a3a66;
+    --text: #ffffff;
+    --text-secondary: #7a8ab8;
+    --text-tertiary: #cfd8f0;
+    --accent: #e94560;
+    --accent-dark: #c73550;
+    --overlay-bg: rgba(10, 15, 30, 0.85);
+    --toggle-off: #2a3a66;
+  }
+  [data-theme="light"] {
+    --bg: #f2f2f7;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #ffffff;
+    --bg-elevated: #e8e8f0;
+    --border: #d8d8e2;
+    --text: #1a1a2e;
+    --text-secondary: #6a6a8a;
+    --text-tertiary: #4a4a6a;
+    --accent: #e94560;
+    --accent-dark: #c73550;
+    --overlay-bg: rgba(245, 245, 250, 0.92);
+    --toggle-off: #c8c8d8;
+  }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    user-select: none;
+    -webkit-user-select: none;
+    overflow-x: hidden;
+    padding: 20px 0;
+    transition: background 0.3s, color 0.3s;
+  }
+  .game-header {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    align-items: center;
+    padding: 0 20px 12px;
+    gap: 12px;
+  }
+  .back-btn {
+    background: var(--bg-tertiary);
+    border: 1.5px solid var(--border);
+    color: var(--text-tertiary);
+    border-radius: 12px;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s, border-color 0.15s;
+    touch-action: manipulation;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .back-btn:hover { border-color: var(--accent); }
+  .back-btn:active { transform: scale(0.96); }
+  .game-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--accent);
+    letter-spacing: 1px;
+    flex: 1;
+  }
+  .menu-btn {
+    background: var(--bg-tertiary);
+    border: 1.5px solid var(--border);
+    color: var(--text-tertiary);
+    border-radius: 12px;
+    width: 40px;
+    height: 38px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s, border-color 0.15s;
+    touch-action: manipulation;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .menu-btn:hover { border-color: var(--accent); }
+  .menu-btn:active { transform: scale(0.94); }
+
+  .status-bar {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    margin-bottom: 14px;
+    font-size: 15px;
+  }
+  .player-score {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: var(--bg-tertiary);
+    border: 1.5px solid var(--border);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .player-score.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 12px rgba(233, 69, 96, 0.4);
+  }
+  .player-score .mini-disc {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+  }
+  .player-score .mini-disc.black { background: #1a1a1a; box-shadow: inset 0 1px 2px rgba(255,255,255,0.2); }
+  .player-score .mini-disc.white { background: #f5f5f5; box-shadow: inset 0 1px 2px rgba(0,0,0,0.25); }
+  .player-score .count { font-weight: bold; color: var(--text-tertiary); }
+
+  /* 棋盘固定深绿色，不随主题变化 */
+  #othello-board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    width: 340px;
+    height: 340px;
+    background: #2e7d32;
+    border-radius: 10px;
+    padding: 4px;
+    gap: 2px;
+    border: 3px solid #1b5e20;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  }
+  .o-cell {
+    background: #43a047;
+    border-radius: 3px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    cursor: default;
+    transition: background 0.15s;
+  }
+  .o-cell.playable { cursor: pointer; }
+  .o-cell.playable:hover { background: #4caf50; }
+  .o-cell.playable::after {
+    content: '';
+    position: absolute;
+    width: 35%;
+    height: 35%;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.35);
+    border: 1.5px solid rgba(255, 255, 255, 0.6);
+    animation: hintPulse 1.5s ease-in-out infinite;
+  }
+  @keyframes hintPulse {
+    0%, 100% { transform: scale(1); opacity: 0.7; }
+    50% { transform: scale(1.15); opacity: 1; }
+  }
+
+  .disc-piece {
+    width: 82%;
+    height: 82%;
+    border-radius: 50%;
+    position: relative;
+  }
+  .disc-piece.black {
+    background: radial-gradient(circle at 35% 30%, #444, #111 70%);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5), inset 0 -2px 4px rgba(0,0,0,0.6);
+  }
+  .disc-piece.white {
+    background: radial-gradient(circle at 35% 30%, #ffffff, #d8d8d8 75%);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.35), inset 0 -2px 4px rgba(0,0,0,0.15);
+  }
+
+  .disc-piece.flipping {
+    animation: flipDisc 0.5s cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  @keyframes flipDisc {
+    0%   { transform: scaleX(1); }
+    50%  { transform: scaleX(0.02); }
+    100% { transform: scaleX(1); }
+  }
+
+  .o-cell.last-move-highlight::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: 3px;
+    border: 2px solid #FFC107;
+    box-shadow: 0 0 14px #FFC107, inset 0 0 12px rgba(255, 193, 7, 0.4);
+    pointer-events: none;
+    animation: aiPulse 0.8s ease-in-out infinite alternate;
+  }
+  @keyframes aiPulse {
+    from { opacity: 0.5; transform: scale(0.9); }
+    to   { opacity: 1;   transform: scale(1.03); }
+  }
+
+  #othello-msg {
+    margin-top: 16px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    min-height: 20px;
+    text-align: center;
+  }
+
+  .restart-btn {
+    margin-top: 20px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 14px 44px;
+    font-size: 17px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(233, 69, 96, 0.4);
+    transition: transform 0.15s, box-shadow 0.15s;
+    font-family: inherit;
+    letter-spacing: 1px;
+    touch-action: manipulation;
+  }
+  .restart-btn:hover { transform: translateY(-2px); }
+  .restart-btn:active { transform: translateY(0) scale(0.97); }
+
+  .settings-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--overlay-bg);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .settings-overlay.show { opacity: 1; pointer-events: auto; }
+  .settings-card {
+    background: var(--bg-tertiary);
+    border-radius: 20px;
+    padding: 26px 28px;
+    width: 320px;
+    max-width: 86vw;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    border: 2px solid var(--border);
+    transform: scale(0.9);
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .settings-overlay.show .settings-card { transform: scale(1); }
+  .settings-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--accent);
+    text-align: center;
+    margin-bottom: 18px;
+    letter-spacing: 2px;
+  }
+  .settings-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 15px;
+    color: var(--text);
+  }
+  .settings-row:last-of-type { border-bottom: none; }
+  .settings-close {
+    display: block;
+    margin: 20px auto 0;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 40px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 16px rgba(233, 69, 96, 0.4);
+    touch-action: manipulation;
+  }
+  .settings-close:active { transform: scale(0.96); }
+
+  .toggle-switch {
+    position: relative;
+    width: 46px;
+    height: 26px;
+    background: var(--toggle-off);
+    border-radius: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+    touch-action: manipulation;
+    flex-shrink: 0;
+  }
+  .toggle-switch.on { background: var(--accent); }
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 22px;
+    height: 22px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+  .toggle-switch.on::after { transform: translateX(20px); }
+
+  .mode-group { display: flex; gap: 6px; }
+  .mode-btn {
+    background: var(--bg-elevated);
+    border: 1.5px solid transparent;
+    color: var(--text-tertiary);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: bold;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    touch-action: manipulation;
+  }
+  .mode-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .mode-btn:active { transform: scale(0.94); }
+</style>
+</head>
+<body>
+  <div class="game-header">
+    <a class="back-btn" href="index.html">← 返回</a>
+    <div class="game-title">黑白翻转棋</div>
+    <button class="menu-btn" onclick="openOthelloSettings()">☰</button>
+  </div>
+
+  <div class="status-bar">
+    <div class="player-score" id="othello-black-score">
+      <div class="mini-disc black"></div>
+      <span class="count">2</span>
+    </div>
+    <div class="player-score" id="othello-white-score">
+      <div class="mini-disc white"></div>
+      <span class="count">2</span>
+    </div>
+  </div>
+
+  <div id="othello-board"></div>
+  <div id="othello-msg"></div>
+  <button class="restart-btn" id="othello-restart-btn">重新开始</button>
+
+  <div class="settings-overlay" id="othello-settings-overlay">
+    <div class="settings-card">
+      <div class="settings-title">黑白翻转棋设置</div>
+      <div class="settings-row">
+        <span>对局模式</span>
+        <div class="mode-group">
+          <button class="mode-btn active" data-mode="ai" onclick="setOthelloMode('ai')">人机</button>
+          <button class="mode-btn" data-mode="pvp" onclick="setOthelloMode('pvp')">双人</button>
+        </div>
+      </div>
+      <div class="settings-row">
+        <span>音效</span>
+        <div class="toggle-switch on" id="othello-sound-toggle" onclick="toggleOthelloSound()"></div>
+      </div>
+      <button class="settings-close" onclick="closeOthelloSettings()">关闭</button>
+    </div>
+  </div>
+
+<script>
+const SIZE = 8;
+const FLIP_DURATION = 500;
+const FLIP_MIDPOINT = 250;
+
+let board = [];
+let currentPlayer = 1;
+let gameOver = false;
+let aiTimer = null;
+let paused = false;
+let savedAiPending = false;   // 暂停时 AI 是否在等待
+let lastMove = null;
+let pendingFlips = [];
+
+let soundEnabled = localStorage.getItem('othello_sound') !== '0';
+let gameMode = localStorage.getItem('othello_mode') || 'ai';
+
+const boardEl = document.getElementById('othello-board');
+const blackScoreEl = document.querySelector('#othello-black-score .count');
+const whiteScoreEl = document.querySelector('#othello-white-score .count');
+const msgEl = document.getElementById('othello-msg');
+const restartBtn = document.getElementById('othello-restart-btn');
+
+const POSITION_WEIGHTS = [
+  [100, -20, 10,  5,  5, 10, -20, 100],
+  [-20, -50, -2, -2, -2, -2, -50, -20],
+  [ 10,  -2, -1, -1, -1, -1,  -2,  10],
+  [  5,  -2, -1, -1, -1, -1,  -2,   5],
+  [  5,  -2, -1, -1, -1, -1,  -2,   5],
+  [ 10,  -2, -1, -1, -1, -1,  -2,  10],
+  [-20, -50, -2, -2, -2, -2, -50, -20],
+  [100, -20, 10,  5,  5, 10, -20, 100]
+];
+
+const DIRS = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+}
+
+function isValidMove(bd, r, c, player) {
+  if (bd[r][c] !== 0) return false;
+  const opponent = player === 1 ? 2 : 1;
+  for (let [dr, dc] of DIRS) {
+    let nr = r + dr, nc = c + dc;
+    let hasOpponent = false;
+    while (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && bd[nr][nc] === opponent) {
+      hasOpponent = true;
+      nr += dr; nc += dc;
+    }
+    if (hasOpponent && nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && bd[nr][nc] === player) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function getFlipped(bd, r, c, player) {
+  const opponent = player === 1 ? 2 : 1;
+  let flipped = [];
+  for (let [dr, dc] of DIRS) {
+    let nr = r + dr, nc = c + dc;
+    let line = [];
+    while (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && bd[nr][nc] === opponent) {
+      line.push([nr, nc]);
+      nr += dr; nc += dc;
+    }
+    if (line.length > 0 && nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && bd[nr][nc] === player) {
+      flipped = flipped.concat(line);
+    }
+  }
+  return flipped;
+}
+
+function getValidMoves(bd, player) {
+  const moves = [];
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (isValidMove(bd, r, c, player)) moves.push([r, c]);
+    }
+  }
+  return moves;
+}
+
+function placeStone(r, c, player) {
+  const flipped = getFlipped(board, r, c, player);
+  if (flipped.length === 0) return null;
+
+  pendingFlips = flipped.map(([fr, fc]) => ({
+    r: fr, c: fc, from: board[fr][fc], to: player
+  }));
+
+  board[r][c] = player;
+  for (let [fr, fc] of flipped) {
+    board[fr][fc] = player;
+  }
+  lastMove = [r, c];
+  playPlaceSound();
+  return flipped;
+}
+
+function animateFlips() {
+  if (pendingFlips.length === 0) return;
+  const cells = boardEl.querySelectorAll('.o-cell');
+
+  const flips = pendingFlips;
+  pendingFlips = [];
+
+  flips.forEach(({ r, c, from, to }) => {
+    const cell = cells[r * SIZE + c];
+    if (!cell) return;
+    const disc = cell.querySelector('.disc-piece');
+    if (!disc) return;
+
+    disc.classList.add('flipping');
+
+    setTimeout(() => {
+      disc.classList.remove('black', 'white');
+      disc.classList.add(to === 1 ? 'black' : 'white');
+    }, FLIP_MIDPOINT);
+
+    disc.addEventListener('animationend', () => {
+      disc.classList.remove('flipping');
+    }, { once: true });
+  });
+}
+
+function render() {
+  boardEl.innerHTML = '';
+
+  const validMoves = gameOver ? [] : getValidMoves(board, currentPlayer);
+  const validSet = new Set(validMoves.map(([r, c]) => r * 8 + c));
+
+  const isHumanTurn = gameMode === 'pvp' || currentPlayer === 1;
+
+  const flipMap = new Map();
+  pendingFlips.forEach(f => flipMap.set(f.r * SIZE + f.c, f.from));
+
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'o-cell';
+      const val = board[r][c];
+      const displayVal = flipMap.has(r * SIZE + c) ? flipMap.get(r * SIZE + c) : val;
+
+      if (displayVal === 1 || displayVal === 2) {
+        const disc = document.createElement('div');
+        disc.className = 'disc-piece ' + (displayVal === 1 ? 'black' : 'white');
+        cell.appendChild(disc);
+      } else if (validSet.has(r * 8 + c) && isHumanTurn && !gameOver && !paused) {
+        cell.classList.add('playable');
+        cell.addEventListener('pointerdown', () => handleMove(r, c));
+      }
+
+      if (lastMove && lastMove[0] === r && lastMove[1] === c) {
+        cell.classList.add('last-move-highlight');
+      }
+
+      boardEl.appendChild(cell);
+    }
+  }
+
+  let black = 0, white = 0;
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] === 1) black++;
+      else if (board[r][c] === 2) white++;
+    }
+  }
+  blackScoreEl.innerText = black;
+  whiteScoreEl.innerText = white;
+
+  document.getElementById('othello-black-score').classList.toggle('active', currentPlayer === 1 && !gameOver);
+  document.getElementById('othello-white-score').classList.toggle('active', currentPlayer === 2 && !gameOver);
+}
+
+function handleMove(r, c) {
+  if (gameOver || paused) return;
+  if (!isValidMove(board, r, c, currentPlayer)) return;
+  if (gameMode === 'ai' && currentPlayer !== 1) return;
+
+  placeStone(r, c, currentPlayer);
+  currentPlayer = currentPlayer === 1 ? 2 : 1;
+  render();
+  animateFlips();
+
+  setTimeout(processTurn, FLIP_DURATION + 50);
+}
+
+function processTurn() {
+  if (gameOver || paused) return;
+
+  const moves = getValidMoves(board, currentPlayer);
+  if (moves.length === 0) {
+    const otherMoves = getValidMoves(board, currentPlayer === 1 ? 2 : 1);
+    if (otherMoves.length === 0) {
+      endGame();
+      return;
+    }
+    const playerName = currentPlayer === 1 ? '黑棋' : '白棋';
+    msgEl.innerText = playerName + '无子可下，跳过回合';
+    currentPlayer = currentPlayer === 1 ? 2 : 1;
+    render();
+    processTurn();
+    return;
+  }
+
+  msgEl.innerText = '';
+  render();
+
+  if (gameMode === 'ai' && currentPlayer === 2) {
+    msgEl.innerText = 'AI 思考中…';
+    const delay = 1000 + Math.random() * 2500;
+    aiTimer = setTimeout(aiMove, delay);
+  }
+}
+
+function aiMove() {
+  aiTimer = null;
+  if (gameOver || currentPlayer !== 2 || gameMode !== 'ai' || paused) return;
+
+  const moves = getValidMoves(board, 2);
+  if (moves.length === 0) return;
+
+  let bestMove = null;
+  let bestScore = -Infinity;
+
+  for (let [r, c] of moves) {
+    const flipped = getFlipped(board, r, c, 2);
+    const score = flipped.length * 2 + POSITION_WEIGHTS[r][c] * 0.5;
+    if (score > bestScore) {
+      bestScore = score;
+      bestMove = [r, c];
+    }
+  }
+
+  if (bestMove) {
+    placeStone(bestMove[0], bestMove[1], 2);
+    render();
+    animateFlips();
+
+    currentPlayer = 1;
+    setTimeout(processTurn, FLIP_DURATION + 50);
+  }
+}
+
+function endGame() {
+  gameOver = true;
+
+  let black = 0, white = 0;
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] === 1) black++;
+      else if (board[r][c] === 2) white++;
+    }
+  }
+
+  let resultText;
+  if (gameMode === 'pvp') {
+    if (black > white) resultText = `🎉 黑棋获胜！ ${black} : ${white}`;
+    else if (black < white) resultText = `🎉 白棋获胜！ ${black} : ${white}`;
+    else resultText = `平局！ ${black} : ${white}`;
+  } else {
+    if (black > white) resultText = `🎉 你赢了！ ${black} : ${white}`;
+    else if (black < white) resultText = `😢 你输了… ${black} : ${white}`;
+    else resultText = `平局！ ${black} : ${white}`;
+  }
+
+  msgEl.innerText = resultText;
+  playEndSound(black > white);
+  render();
+}
+
+function playPlaceSound() {
+  if (!soundEnabled || !audioCtx) return;
+  const t = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(800, t);
+  osc.frequency.exponentialRampToValueAtTime(400, t + 0.08);
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(0.15, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(t);
+  osc.stop(t + 0.1);
+}
+
+function playEndSound(win) {
+  if (!soundEnabled || !audioCtx) return;
+  const t = audioCtx.currentTime;
+  const notes = win ? [523, 659, 784, 1047] : [400, 350, 300, 250];
+  notes.forEach((freq, i) => {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, t + i * 0.12);
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0.15, t + i * 0.12);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.12 + 0.15);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t + i * 0.12);
+    osc.stop(t + i * 0.12 + 0.15);
+  });
+}
+
+function startGame() {
+  if (aiTimer) { clearTimeout(aiTimer); aiTimer = null; }
+
+  board = [];
+  for (let r = 0; r < SIZE; r++) {
+    board.push(new Array(SIZE).fill(0));
+  }
+  board[3][3] = 2; board[4][4] = 2;
+  board[3][4] = 1; board[4][3] = 1;
+
+  currentPlayer = 1;
+  gameOver = false;
+  paused = false;
+  savedAiPending = false;
+  lastMove = null;
+  pendingFlips = [];
+  msgEl.innerText = '';
+  render();
+}
+
+/* 设置面板（点击时暂停） */
+function openOthelloSettings() {
+  paused = true;
+  if (aiTimer) {
+    clearTimeout(aiTimer);
+    aiTimer = null;
+    savedAiPending = true;
+  }
+  document.getElementById('othello-settings-overlay').classList.add('show');
+}
+function closeOthelloSettings() {
+  document.getElementById('othello-settings-overlay').classList.remove('show');
+  paused = false;
+  // 恢复 AI 思考
+  if (savedAiPending && !gameOver && currentPlayer === 2 && gameMode === 'ai') {
+    savedAiPending = false;
+    const delay = 1000 + Math.random() * 2500;
+    aiTimer = setTimeout(aiMove, delay);
+  } else {
+    savedAiPending = false;
+  }
+}
+function toggleOthelloSound() {
+  soundEnabled = !soundEnabled;
+  localStorage.setItem('othello_sound', soundEnabled ? '1' : '0');
+  document.getElementById('othello-sound-toggle').classList.toggle('on', soundEnabled);
+}
+function setOthelloMode(mode) {
+  if (mode === gameMode) return;
+  gameMode = mode;
+  localStorage.setItem('othello_mode', mode);
+  document.querySelectorAll('#othello-settings-overlay .mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+  startGame();
+}
+
+boardEl.addEventListener('pointerdown', () => initAudio(), { once: true });
+restartBtn.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  initAudio();
+  startGame();
+});
+
+(function initUI() {
+  document.getElementById('othello-sound-toggle').classList.toggle('on', soundEnabled);
+  document.querySelectorAll('#othello-settings-overlay .mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === gameMode);
+  });
+})();
+
+startGame();
+</script>
+</body>
+</html>
