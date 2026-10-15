@@ -19,7 +19,6 @@
     --accent: #e94560;
     --accent-dark: #c73550;
     --overlay-bg: rgba(10, 15, 30, 0.85);
-    --toggle-bg: #2a3a66;
     --toggle-off: #2a3a66;
   }
   [data-theme="light"] {
@@ -34,7 +33,6 @@
     --accent: #e94560;
     --accent-dark: #c73550;
     --overlay-bg: rgba(245, 245, 250, 0.92);
-    --toggle-bg: #c8c8d8;
     --toggle-off: #c8c8d8;
   }
   body {
@@ -118,11 +116,11 @@
     margin-bottom: 12px;
   }
 
-  /* 游戏棋盘区域固定深色，不随主题变化 */
+  /* 游戏棋盘区域固定深色 */
   #fangkuai-area {
     position: relative;
     width: 340px;
-    height: 740px;
+    height: 555px;   /* 15 行 × 37px */
     background: #16213e;
     border-radius: 16px;
     overflow: hidden;
@@ -233,7 +231,6 @@
   .restart-btn:hover { transform: translateY(-2px); }
   .restart-btn:active { transform: translateY(0) scale(0.97); }
 
-  /* 设置弹窗 */
   .settings-overlay {
     position: fixed;
     inset: 0;
@@ -388,11 +385,8 @@
   </div>
 
 <script>
-/* ==========================================
-   消方块
-   ========================================== */
 const COLS = 4;
-const DISPLAY_ROWS = 20;
+const DISPLAY_ROWS = 15;   /* 【改】显示 15 行 */
 const MAX_ROWS = DISPLAY_ROWS + 1;
 const ROW_HEIGHT = 37;
 const ALARM_DURATION = 700;
@@ -620,7 +614,6 @@ function simulateFutureGrid() {
 function gameLoop(time) {
   if (!gameRunning) { rafId = null; return; }
 
-  // 【新增】暂停处理
   if (paused) {
     if (pauseStartTime === 0) pauseStartTime = time;
     lastFrameTime = time;
@@ -628,7 +621,6 @@ function gameLoop(time) {
     return;
   }
   if (pauseStartTime > 0) {
-    // 恢复：把暂停时长补偿到 startTime，避免时间跳变
     startTime += time - pauseStartTime;
     lastFrameTime = time;
     pauseStartTime = 0;
@@ -786,16 +778,12 @@ restartBtn.addEventListener('pointerdown', (e) => {
   setTimeout(() => startGame(), 200);
 });
 
-/* 设置面板（点击时暂停） */
 function openFkSettings() {
   paused = true;
   document.getElementById('fk-settings-overlay').classList.add('show');
 }
 function closeFkSettings() {
   document.getElementById('fk-settings-overlay').classList.remove('show');
-  // 恢复时交给 gameLoop 里的 pauseStartTime 逻辑
-  // 但需要等一帧让 pauseStartTime 生效，下一帧会处理
-  // 直接取消 paused 状态即可，gameLoop 下一次会补偿时间
   paused = false;
 }
 function toggleFkSound() {
