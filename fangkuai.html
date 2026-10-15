@@ -47,29 +47,33 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-height: 100vh;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
-    overflow-x: hidden;
-    padding: 20px 0;
     transition: background 0.3s, color 0.3s;
     -webkit-tap-highlight-color: transparent;
   }
-  .game-header {
+
+  /* 顶部栏：返回 / 得分 / 菜单 */
+  .top-bar {
     width: 100%;
     max-width: 420px;
     display: flex;
     align-items: center;
-    padding: 0 20px 12px;
-    gap: 12px;
+    justify-content: space-between;
+    padding: 10px 16px;
+    padding-top: calc(10px + env(safe-area-inset-top, 0px));
+    flex-shrink: 0;
   }
   .back-btn {
     background: var(--bg-tertiary);
     border: 1.5px solid var(--border);
     color: var(--text-tertiary);
     border-radius: 12px;
-    padding: 8px 16px;
-    font-size: 14px;
+    padding: 8px 14px;
+    font-size: 16px;
     font-weight: bold;
     cursor: pointer;
     font-family: inherit;
@@ -77,23 +81,32 @@
     touch-action: manipulation;
     text-decoration: none;
     display: inline-block;
+    min-width: 44px;
+    text-align: center;
   }
   .back-btn:hover { border-color: var(--accent); }
-  .back-btn:active { transform: scale(0.96); }
-  .game-title {
-    font-size: 18px;
+  .back-btn:active { transform: scale(0.94); }
+
+  .score-display {
+    font-size: 22px;
     font-weight: bold;
     color: var(--accent);
     letter-spacing: 1px;
-    flex: 1;
   }
+  .score-display .label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: normal;
+    margin-right: 4px;
+  }
+
   .menu-btn {
     background: var(--bg-tertiary);
     border: 1.5px solid var(--border);
     color: var(--text-tertiary);
     border-radius: 12px;
-    width: 40px;
-    height: 38px;
+    width: 44px;
+    height: 40px;
     font-size: 18px;
     font-weight: bold;
     cursor: pointer;
@@ -104,28 +117,26 @@
     justify-content: center;
     align-items: center;
     padding: 0;
-    -webkit-tap-highlight-color: transparent;
   }
   .menu-btn:hover { border-color: var(--accent); }
   .menu-btn:active { transform: scale(0.94); }
 
-  .subtitle {
-    font-size: 13px;
-    color: var(--text-secondary);
-    margin-bottom: 6px;
-  }
-  .score {
-    font-size: 26px;
-    font-weight: bold;
-    color: var(--accent);
-    margin-bottom: 12px;
+  /* 游戏区域容器：居中棋盘 */
+  .game-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 6px 0;
+    min-height: 0;
   }
 
   /* 游戏棋盘区域固定深色，不随主题变化 */
   #fangkuai-area {
     position: relative;
     width: 340px;
-    height: 555px;   /* 15 行 × 37px */
+    height: 555px;
     background: #16213e;
     border-radius: 16px;
     overflow: hidden;
@@ -229,13 +240,12 @@
     font-weight: bold;
     cursor: pointer;
     box-shadow: 0 4px 16px rgba(233, 69, 96, 0.4);
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition: transform 0.15s;
     font-family: inherit;
     letter-spacing: 1px;
     touch-action: none;
   }
-  .restart-btn:hover { transform: translateY(-2px); }
-  .restart-btn:active { transform: translateY(0) scale(0.97); }
+  .restart-btn:active { transform: scale(0.97); }
 
   .settings-overlay {
     position: fixed;
@@ -282,6 +292,11 @@
     color: var(--text);
   }
   .settings-row:last-of-type { border-bottom: none; }
+  .settings-row.col {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
   .settings-close {
     display: block;
     margin: 20px auto 0;
@@ -327,46 +342,57 @@
 
   .difficulty-group { display: flex; gap: 6px; }
   .diff-btn {
+    flex: 1;
     background: var(--bg-elevated);
     border: 1.5px solid transparent;
     color: var(--text-tertiary);
     border-radius: 8px;
-    padding: 6px 12px;
+    padding: 10px 8px;
     font-size: 13px;
     font-weight: bold;
     font-family: inherit;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s, color 0.15s;
     touch-action: manipulation;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .diff-btn .sub {
+    font-size: 10px;
+    font-weight: normal;
+    opacity: 0.7;
   }
   .diff-btn.active {
     background: var(--accent);
     border-color: var(--accent);
     color: #fff;
   }
-  .diff-btn:active { transform: scale(0.94); }
+  .diff-btn.active .sub { opacity: 0.9; }
+  .diff-btn:active { transform: scale(0.96); }
 </style>
 </head>
 <body>
-  <div class="game-header">
-    <a class="back-btn" href="index.html">← 返回</a>
-    <div class="game-title">消方块</div>
+  <div class="top-bar">
+    <a class="back-btn" href="index.html">←</a>
+    <div class="score-display"><span class="label">得分</span><span id="fk-score">0</span></div>
     <button class="menu-btn" onclick="openFkSettings()">☰</button>
   </div>
-  <div class="subtitle">点击任意一列发射方块，填满一行4格即可消除！</div>
-  <div class="score" id="fk-score">得分: 0</div>
-  
-  <div id="fangkuai-area">
-    <div id="fangkuai-rows"></div>
-    <div class="game-over-overlay" id="fk-overlay">
-      <div class="game-over-card">
-        <div class="game-over-title">游戏结束</div>
-        <div class="game-over-subtitle">GAME OVER</div>
-        <div class="game-over-score" id="fk-final-score">0</div>
-        <div class="game-over-label">最终得分</div>
-        <div class="game-over-divider"></div>
-        <div class="game-over-highscore" id="fk-highscore-display">👑 最高分: 0</div>
-        <button class="restart-btn" id="fk-restart-btn">再来一局</button>
+
+  <div class="game-container">
+    <div id="fangkuai-area">
+      <div id="fangkuai-rows"></div>
+      <div class="game-over-overlay" id="fk-overlay">
+        <div class="game-over-card">
+          <div class="game-over-title">游戏结束</div>
+          <div class="game-over-subtitle">GAME OVER</div>
+          <div class="game-over-score" id="fk-final-score">0</div>
+          <div class="game-over-label">最终得分</div>
+          <div class="game-over-divider"></div>
+          <div class="game-over-highscore" id="fk-highscore-display">👑 最高分: 0</div>
+          <button class="restart-btn" id="fk-restart-btn">再来一局</button>
+        </div>
       </div>
     </div>
   </div>
@@ -378,12 +404,18 @@
         <span>音效</span>
         <div class="toggle-switch on" id="fk-sound-toggle" onclick="toggleFkSound()"></div>
       </div>
-      <div class="settings-row">
-        <span>下落速度</span>
+      <div class="settings-row col">
+        <div>起始进度</div>
         <div class="difficulty-group">
-          <button class="diff-btn" data-diff="easy" onclick="setFkDifficulty('easy')">慢</button>
-          <button class="diff-btn active" data-diff="normal" onclick="setFkDifficulty('normal')">正常</button>
-          <button class="diff-btn" data-diff="hard" onclick="setFkDifficulty('hard')">快</button>
+          <button class="diff-btn" data-diff="easy" onclick="setFkDifficulty('easy')">
+            <span>前期</span><span class="sub">0 秒</span>
+          </button>
+          <button class="diff-btn active" data-diff="normal" onclick="setFkDifficulty('normal')">
+            <span>中期</span><span class="sub">30 秒</span>
+          </button>
+          <button class="diff-btn" data-diff="hard" onclick="setFkDifficulty('hard')">
+            <span>后期</span><span class="sub">60 秒</span>
+          </button>
         </div>
       </div>
       <button class="settings-close" onclick="closeFkSettings()">关闭</button>
@@ -392,7 +424,7 @@
 
 <script>
 /* ==========================================
-   消方块
+   消方块 — 动态难度
    ========================================== */
 const COLS = 4;
 const DISPLAY_ROWS = 15;
@@ -400,11 +432,21 @@ const MAX_ROWS = DISPLAY_ROWS + 1;
 const ROW_HEIGHT = 37;
 const ALARM_DURATION = 700;
 
+/* 【新】难度 = 起始时间(秒)，越大越难 */
 const DIFFICULTY = {
-  easy:   { base: 28, max: 90 },
-  normal: { base: 37, max: 130 },
-  hard:   { base: 50, max: 180 }
+  easy:   { offset: 0 },   // 从 0 秒开始
+  normal: { offset: 30 },  // 从 30 秒开始
+  hard:   { offset: 60 }   // 从 60 秒开始
 };
+
+/* 速度公式：base + elapsed * growFactor，上限 maxSpeed */
+const BASE_SPEED = 37;
+const GROW_FACTOR = 1.5;
+const MAX_SPEED = 200;
+
+/* 【新】橙色行相关参数 */
+const MAX_ORANGE_ROWS = 5;        // 场上最多同时存在 5 行橙色
+const ORANGE_RAMP_TIME = 90;      // 90 秒内橙色概率从 0 涨到 0.85
 
 let grid = [];
 let score = 0;
@@ -413,9 +455,9 @@ let paused = false;
 let pauseStartTime = 0;
 let flyingBullets = [];
 let visualOffset = 0;
-let currentSpeed = 37;
-let baseSpeed = 37;
-let maxSpeed = 130;
+let currentSpeed = BASE_SPEED;
+let timeOffset = 0;               // 【新】难度起始时间
+let currentElapsed = 0;           // 【新】当前游戏时间(秒)，供动态生成使用
 let lastFrameTime = 0;
 let startTime = 0;
 let alarmStartTime = null;
@@ -568,15 +610,42 @@ function renderAll() {
   }
 }
 
-function shiftGridDown() {
-  grid.pop();
+/* 【新】统计场上橙色行数量 */
+function getOrangeRowCount() {
+  let count = 0;
+  for (let r = 0; r < MAX_ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (grid[r][c] === 2 || grid[r][c] === 3) {
+        count++;
+        break;
+      }
+    }
+  }
+  return count;
+}
+
+/* 【新】生成一行：橙色概率随游戏时间上升，但总数不超过 MAX_ORANGE_ROWS */
+function generateRow() {
   const emptyCol = Math.floor(Math.random() * COLS);
-  const rowColor = Math.random() < 0.5 ? 1 : 2;
+  let rowColor = 1; // 默认蓝色
+
+  const orangeCount = getOrangeRowCount();
+  if (orangeCount < MAX_ORANGE_ROWS) {
+    // 时间越长，橙色概率越高
+    const orangeChance = Math.min(0.85, currentElapsed / ORANGE_RAMP_TIME);
+    if (Math.random() < orangeChance) rowColor = 2;
+  }
+
   const newRow = [];
   for (let c = 0; c < COLS; c++) {
     newRow.push(c === emptyCol ? 0 : rowColor);
   }
-  grid.unshift(newRow);
+  return newRow;
+}
+
+function shiftGridDown() {
+  grid.pop();
+  grid.unshift(generateRow());
   for (let b of flyingBullets) b.targetRow++;
   renderAll();
 }
@@ -642,8 +711,12 @@ function gameLoop(time) {
   const dt = (time - lastFrameTime) / 1000;
   lastFrameTime = time;
 
-  const elapsed = (time - startTime) / 1000;
-  currentSpeed = Math.min(maxSpeed, baseSpeed + elapsed * 2);
+  /* 【新】当前游戏时间 = 实际经过时间 + 难度起始偏移 */
+  currentElapsed = (time - startTime) / 1000 + timeOffset;
+
+  /* 【新】统一速度公式 */
+  currentSpeed = Math.min(MAX_SPEED, BASE_SPEED + currentElapsed * GROW_FACTOR);
+
   visualOffset += currentSpeed * dt;
 
   while (visualOffset >= ROW_HEIGHT) {
@@ -728,7 +801,7 @@ function clearRow(rowIndex) {
     rowScore += grid[rowIndex][c] === 1 ? 10 : 20;
   }
   score += rowScore;
-  scoreEl.innerText = '得分: ' + score;
+  scoreEl.innerText = score;
 
   for (let r = rowIndex; r < MAX_ROWS - 1; r++) {
     grid[r] = [...grid[r + 1]];
@@ -807,9 +880,9 @@ function setFkDifficulty(diff) {
   document.querySelectorAll('#fk-settings-overlay .diff-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.diff === diff);
   });
-  const params = DIFFICULTY[diff];
-  baseSpeed = params.base;
-  maxSpeed = params.max;
+  /* 切换难度后重开一局 */
+  closeFkSettings();
+  setTimeout(() => startGame(), 200);
 }
 
 function gameOver() {
@@ -834,17 +907,21 @@ function gameOver() {
 }
 
 function startGame() {
+  /* 【新】根据难度设置起始时间偏移 */
   const params = DIFFICULTY[difficulty];
-  baseSpeed = params.base;
-  maxSpeed = params.max;
-  currentSpeed = baseSpeed;
+  timeOffset = params.offset;
+  currentElapsed = timeOffset;
+  currentSpeed = Math.min(MAX_SPEED, BASE_SPEED + currentElapsed * GROW_FACTOR);
 
   grid = [];
   for (let i = 0; i < MAX_ROWS; i++) grid.push([0, 0, 0, 0]);
 
+  /* 预填 4 行：开局都是蓝色（generateRow 内部已经处理） */
   for (let i = 0; i < 4; i++) {
+    /* 生成预填行时临时用 timeOffset 作为初始时间 */
+    const orangeCount = 0;
+    const rowColor = 1; // 预填全蓝
     const emptyCol = Math.floor(Math.random() * COLS);
-    const rowColor = Math.random() < 0.5 ? 1 : 2;
     for (let c = 0; c < COLS; c++) {
       grid[i][c] = c === emptyCol ? 0 : rowColor;
     }
@@ -864,7 +941,7 @@ function startGame() {
   startTime = 0;
   alarmStartTime = null;
 
-  scoreEl.innerText = '得分: 0';
+  scoreEl.innerText = '0';
   area.classList.remove('alarm');
   overlay.classList.remove('show');
 
@@ -882,7 +959,7 @@ function startGame() {
   });
 })();
 
-/* ============ 全局防双击缩放 / 长按菜单 ============ */
+/* 全局防双击缩放 / 长按菜单 */
 let lastTouchEnd = 0;
 document.addEventListener('touchend', (e) => {
   const now = Date.now();
