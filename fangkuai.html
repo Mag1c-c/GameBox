@@ -56,7 +56,6 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* 顶部栏：返回 / 得分 / 菜单 */
   .top-bar {
     width: 100%;
     max-width: 420px;
@@ -84,7 +83,6 @@
     min-width: 44px;
     text-align: center;
   }
-  .back-btn:hover { border-color: var(--accent); }
   .back-btn:active { transform: scale(0.94); }
 
   .score-display {
@@ -118,10 +116,8 @@
     align-items: center;
     padding: 0;
   }
-  .menu-btn:hover { border-color: var(--accent); }
   .menu-btn:active { transform: scale(0.94); }
 
-  /* 游戏区域容器：居中棋盘 */
   .game-container {
     flex: 1;
     display: flex;
@@ -132,7 +128,6 @@
     min-height: 0;
   }
 
-  /* 游戏棋盘区域固定深色，不随主题变化 */
   #fangkuai-area {
     position: relative;
     width: 340px;
@@ -411,10 +406,10 @@
             <span>前期</span><span class="sub">0 秒</span>
           </button>
           <button class="diff-btn active" data-diff="normal" onclick="setFkDifficulty('normal')">
-            <span>中期</span><span class="sub">30 秒</span>
+            <span>中期</span><span class="sub">20 秒</span>
           </button>
           <button class="diff-btn" data-diff="hard" onclick="setFkDifficulty('hard')">
-            <span>后期</span><span class="sub">60 秒</span>
+            <span>后期</span><span class="sub">45 秒</span>
           </button>
         </div>
       </div>
@@ -424,7 +419,7 @@
 
 <script>
 /* ==========================================
-   消方块 — 动态难度
+   消方块 — 动态难度 (修复数组越界崩溃)
    ========================================== */
 const COLS = 4;
 const DISPLAY_ROWS = 15;
@@ -432,21 +427,21 @@ const MAX_ROWS = DISPLAY_ROWS + 1;
 const ROW_HEIGHT = 37;
 const ALARM_DURATION = 700;
 
-/* 【新】难度 = 起始时间(秒)，越大越难 */
 const DIFFICULTY = {
-  easy:   { offset: 0 },   // 从 0 秒开始
-  normal: { offset: 30 },  // 从 30 秒开始
-  hard:   { offset: 60 }   // 从 60 秒开始
+  easy:   { offset: 0 },
+  normal: { offset: 20 },
+  hard:   { offset: 45 }
 };
 
-/* 速度公式：base + elapsed * growFactor，上限 maxSpeed */
-const BASE_SPEED = 37;
-const GROW_FACTOR = 1.5;
-const MAX_SPEED = 200;
+const BASE_SPEED = 32;
+const GROW_FACTOR = 1.0;
+const MAX_SPEED = 180;
 
-/* 【新】橙色行相关参数 */
-const MAX_ORANGE_ROWS = 5;        // 场上最多同时存在 5 行橙色
-const ORANGE_RAMP_TIME = 90;      // 90 秒内橙色概率从 0 涨到 0.85
+const MAX_ORANGE_ROWS = 5;
+const ORANGE_RAMP_TIME = 90;
+
+const MAX_DT = 0.1;
+const MAX_SHIFT_PER_FRAME = 3;
 
 let grid = [];
 let score = 0;
@@ -456,8 +451,8 @@ let pauseStartTime = 0;
 let flyingBullets = [];
 let visualOffset = 0;
 let currentSpeed = BASE_SPEED;
-let timeOffset = 0;               // 【新】难度起始时间
-let currentElapsed = 0;           // 【新】当前游戏时间(秒)，供动态生成使用
+let timeOffset = 0;
+let currentElapsed = 0;
 let lastFrameTime = 0;
 let startTime = 0;
 let alarmStartTime = null;
@@ -465,7 +460,12 @@ let rafId = null;
 let highScore = parseInt(localStorage.getItem('blockGameHighScore') || '0', 10);
 
 let soundEnabled = localStorage.getItem('fk_sound') !== '0';
+
 let difficulty = localStorage.getItem('fk_difficulty') || 'normal';
+if (!DIFFICULTY[difficulty]) {
+  difficulty = 'normal';
+  localStorage.setItem('fk_difficulty', 'normal');
+}
 
 const area = document.getElementById('fangkuai-area');
 const rows = document.getElementById('fangkuai-rows');
@@ -599,7 +599,7 @@ function renderAll() {
     for (let c = 0; c < COLS; c++) {
       const tile = document.createElement('div');
       tile.className = 'fk-tile';
-      const val = grid[r][c];
+      const val = grid[r] ? grid[r][c] : 0; // 防御性编程
       if (val === 1) tile.classList.add('blue');
       else if (val === 2) tile.classList.add('orange');
       else if (val === 3) tile.classList.add('orange', 'cracked');
@@ -610,10 +610,10 @@ function renderAll() {
   }
 }
 
-/* 【新】统计场上橙色行数量 */
 function getOrangeRowCount() {
   let count = 0;
-  for (let r = 0; r < MAX_ROWS; r++) {
+  for (let r = 0; r < grid.length; r++) { // 改用 grid.length 避免越界
+    if (!grid[r]) continue;
     for (let c = 0; c < COLS; c++) {
       if (grid[r][c] === 2 || grid[r][c] === 3) {
         count++;
@@ -624,15 +624,13 @@ function getOrangeRowCount() {
   return count;
 }
 
-/* 【新】生成一行：橙色概率随游戏时间上升，但总数不超过 MAX_ORANGE_ROWS */
 function generateRow() {
   const emptyCol = Math.floor(Math.random() * COLS);
-  let rowColor = 1; // 默认蓝色
+  let rowColor = 1;
 
   const orangeCount = getOrangeRowCount();
   if (orangeCount < MAX_ORANGE_ROWS) {
-    // 时间越长，橙色概率越高
-    const orangeChance = Math.min(0.85, currentElapsed / ORANGE_RAMP_TIME);
+    const orangeChance = Math.min(0.85, Math.max(0, currentElapsed) / ORANGE_RAMP_TIME);
     if (Math.random() < orangeChance) rowColor = 2;
   }
 
@@ -644,8 +642,10 @@ function generateRow() {
 }
 
 function shiftGridDown() {
+  // 【修复】先生成新行，此时 grid 长度还是完整的 MAX_ROWS
+  const newRow = generateRow(); 
   grid.pop();
-  grid.unshift(generateRow());
+  grid.unshift(newRow);
   for (let b of flyingBullets) b.targetRow++;
   renderAll();
 }
@@ -658,7 +658,7 @@ function simulateFutureGrid() {
     const b = simBullets[i];
     const finalRow = b.targetRow;
     const finalCol = b.col;
-    if (finalRow < 0 || finalRow >= MAX_ROWS) continue;
+    if (finalRow < 0 || finalRow >= MAX_ROWS || !simGrid[finalRow]) continue;
 
     let otherValues = [];
     for (let c = 0; c < COLS; c++) {
@@ -708,20 +708,28 @@ function gameLoop(time) {
     lastFrameTime = time;
     startTime = time;
   }
-  const dt = (time - lastFrameTime) / 1000;
+
+  let dt = (time - lastFrameTime) / 1000;
+  if (dt > MAX_DT) dt = MAX_DT;
+  if (dt < 0) dt = 0;
   lastFrameTime = time;
 
-  /* 【新】当前游戏时间 = 实际经过时间 + 难度起始偏移 */
   currentElapsed = (time - startTime) / 1000 + timeOffset;
+  if (!isFinite(currentElapsed)) currentElapsed = timeOffset;
 
-  /* 【新】统一速度公式 */
   currentSpeed = Math.min(MAX_SPEED, BASE_SPEED + currentElapsed * GROW_FACTOR);
+  if (!isFinite(currentSpeed)) currentSpeed = BASE_SPEED;
 
   visualOffset += currentSpeed * dt;
 
-  while (visualOffset >= ROW_HEIGHT) {
+  let shiftCount = 0;
+  while (visualOffset >= ROW_HEIGHT && shiftCount < MAX_SHIFT_PER_FRAME) {
     visualOffset -= ROW_HEIGHT;
     shiftGridDown();
+    shiftCount++;
+  }
+  if (visualOffset >= ROW_HEIGHT) {
+    visualOffset = visualOffset % ROW_HEIGHT;
   }
 
   rows.style.transform = `translateY(${visualOffset - ROW_HEIGHT}px)`;
@@ -742,7 +750,7 @@ function gameLoop(time) {
     }
   }
 
-  const bottomHasBlocks = grid[MAX_ROWS - 1].some(v => v > 0);
+  const bottomHasBlocks = grid[MAX_ROWS - 1] && grid[MAX_ROWS - 1].some(v => v > 0);
   if (bottomHasBlocks) {
     area.classList.add('alarm');
     if (alarmStartTime === null) alarmStartTime = time;
@@ -761,7 +769,7 @@ function gameLoop(time) {
 function handleBulletLanding(b) {
   const finalRow = b.targetRow;
   const finalCol = b.col;
-  if (finalRow < 0 || finalRow >= MAX_ROWS) return;
+  if (finalRow < 0 || finalRow >= MAX_ROWS || !grid[finalRow]) return;
 
   let otherValues = [];
   for (let c = 0; c < COLS; c++) {
@@ -813,7 +821,7 @@ function shoot(col) {
   const futureGrid = simulateFutureGrid();
   let lowestOccupiedRow = -1;
   for (let r = MAX_ROWS - 1; r >= 0; r--) {
-    if (futureGrid[r][col] > 0) { lowestOccupiedRow = r; break; }
+    if (futureGrid[r] && futureGrid[r][col] > 0) { lowestOccupiedRow = r; break; }
   }
 
   let targetRow;
@@ -880,7 +888,6 @@ function setFkDifficulty(diff) {
   document.querySelectorAll('#fk-settings-overlay .diff-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.diff === diff);
   });
-  /* 切换难度后重开一局 */
   closeFkSettings();
   setTimeout(() => startGame(), 200);
 }
@@ -907,8 +914,7 @@ function gameOver() {
 }
 
 function startGame() {
-  /* 【新】根据难度设置起始时间偏移 */
-  const params = DIFFICULTY[difficulty];
+  const params = DIFFICULTY[difficulty] || DIFFICULTY.normal;
   timeOffset = params.offset;
   currentElapsed = timeOffset;
   currentSpeed = Math.min(MAX_SPEED, BASE_SPEED + currentElapsed * GROW_FACTOR);
@@ -916,14 +922,10 @@ function startGame() {
   grid = [];
   for (let i = 0; i < MAX_ROWS; i++) grid.push([0, 0, 0, 0]);
 
-  /* 预填 4 行：开局都是蓝色（generateRow 内部已经处理） */
   for (let i = 0; i < 4; i++) {
-    /* 生成预填行时临时用 timeOffset 作为初始时间 */
-    const orangeCount = 0;
-    const rowColor = 1; // 预填全蓝
     const emptyCol = Math.floor(Math.random() * COLS);
     for (let c = 0; c < COLS; c++) {
-      grid[i][c] = c === emptyCol ? 0 : rowColor;
+      grid[i][c] = c === emptyCol ? 0 : 1;
     }
   }
 
@@ -959,7 +961,6 @@ function startGame() {
   });
 })();
 
-/* 全局防双击缩放 / 长按菜单 */
 let lastTouchEnd = 0;
 document.addEventListener('touchend', (e) => {
   const now = Date.now();
