@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>我的游戏库</title>
 <script src="theme.js"></script>
 <style>
@@ -17,6 +17,14 @@
     --accent: #e94560;
     --nav-bg: rgba(15, 21, 42, 0.96);
     --card-gradient: linear-gradient(145deg, #1f2b4d, #16213e);
+    
+    /* 统一规范变量 */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    --shadow-sm: 0 4px 12px rgba(0,0,0,0.15);
+    --shadow-md: 0 8px 32px rgba(0,0,0,0.25);
   }
   [data-theme="light"] {
     --bg: #f2f2f7;
@@ -28,147 +36,92 @@
     --accent: #e94560;
     --nav-bg: rgba(250, 250, 252, 0.96);
     --card-gradient: linear-gradient(145deg, #ffffff, #ebeef5);
+    
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    --shadow-sm: 0 4px 12px rgba(0,0,0,0.05);
+    --shadow-md: 0 8px 32px rgba(0,0,0,0.1);
   }
   html, body {
-    margin: 0;
-    padding: 0;
+    margin: 0; padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    user-select: none;
-    -webkit-user-select: none;
-    overflow-x: hidden;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; user-select: none; -webkit-user-select: none; overflow-x: hidden;
     padding-bottom: 90px;
     transition: background 0.3s, color 0.3s;
   }
   .library-title {
-    text-align: center;
-    font-size: 26px;
-    font-weight: bold;
-    letter-spacing: 2px;
-    margin: 40px 0 30px;
-    color: var(--accent);
+    text-align: center; font-size: 24px; font-weight: bold;
+    letter-spacing: 2px; margin: 32px 0 24px; color: var(--accent);
   }
   .game-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
-    padding: 0 24px;
-    max-width: 420px;
-    margin: 0 auto;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 16px; padding: 0 20px; max-width: 420px; margin: 0 auto;
   }
   .game-card {
     aspect-ratio: 1 / 1;
     background: var(--card-gradient);
-    border-radius: 22px;
-    border: 2px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
+    border-radius: var(--radius-xl); /* 24px */
+    border: 1.5px solid var(--border);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
     cursor: pointer;
-    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s, background 0.3s;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-    padding: 10px;
-    text-decoration: none;
-    color: inherit;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s, background 0.3s;
+    box-shadow: var(--shadow-sm);
+    padding: 10px; text-decoration: none; color: inherit;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
   }
   .game-card:hover {
-    transform: translateY(-3px);
-    border-color: var(--accent);
+    transform: translateY(-4px); border-color: var(--accent);
+    box-shadow: var(--shadow-md);
   }
-  .game-card:active { transform: scale(0.97); }
+  .game-card:active { transform: scale(0.96); }
   .game-card-icon {
-    width: 60%;
-    aspect-ratio: 1 / 1;
-    margin-bottom: 10px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    width: 60%; aspect-ratio: 1 / 1;
+    margin-bottom: 12px; display: flex; justify-content: center; align-items: center;
   }
   .game-card-name {
-    font-size: 15px;
-    font-weight: bold;
-    color: var(--text-tertiary);
-    letter-spacing: 1px;
+    font-size: 15px; font-weight: bold; color: var(--text-tertiary); letter-spacing: 1px;
   }
 
-  .icon-block {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
-    width: 70%;
-    aspect-ratio: 1/1;
-  }
-  .icon-block div { border-radius: 4px; }
+  /* 图标 */
+  .icon-block { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; width: 70%; aspect-ratio: 1/1; }
+  .icon-block div { border-radius: 6px; }
   .icon-block div:nth-child(1) { background: #FF9800; }
   .icon-block div:nth-child(2) { background: #2196F3; }
   .icon-block div:nth-child(3) { background: #2196F3; }
   .icon-block div:nth-child(4) { background: #FF9800; }
 
   .icon-othello {
-    width: 70%;
-    aspect-ratio: 1/1;
-    border-radius: 8px;
-    background: #2e7d32;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 5px;
-    padding: 10px;
+    width: 70%; aspect-ratio: 1/1; border-radius: 12px; background: #2e7d32;
+    display: flex; justify-content: center; align-items: center; gap: 5px; padding: 10px;
   }
-  .icon-othello .disc {
-    width: 32%;
-    aspect-ratio: 1/1;
-    border-radius: 50%;
-  }
-  .icon-othello .disc.black {
-    background: #1a1a1a;
-    box-shadow: inset 0 2px 3px rgba(255,255,255,0.15);
-  }
-  .icon-othello .disc.white {
-    background: #f5f5f5;
-    box-shadow: inset 0 2px 3px rgba(0,0,0,0.2);
-  }
+  .icon-othello .disc { width: 32%; aspect-ratio: 1/1; border-radius: 50%; }
+  .icon-othello .disc.black { background: #1a1a1a; box-shadow: inset 0 2px 3px rgba(255,255,255,0.15); }
+  .icon-othello .disc.white { background: #f5f5f5; box-shadow: inset 0 2px 3px rgba(0,0,0,0.2); }
 
+  .icon-emoji { font-size: 54px; line-height: 1; }
+
+  /* 底部导航 */
   .bottom-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    position: fixed; bottom: 0; left: 0; right: 0;
     background: var(--nav-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     border-top: 1.5px solid var(--border);
-    display: flex;
-    justify-content: space-around;
+    display: flex; justify-content: space-around;
     padding: 8px 0 calc(10px + env(safe-area-inset-bottom, 0px));
-    z-index: 50;
-    transition: background 0.3s, border-color 0.3s;
+    z-index: 50; transition: background 0.3s, border-color 0.3s;
   }
   .nav-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-family: inherit;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    padding: 6px 28px;
-    cursor: pointer;
-    border-radius: 12px;
-    transition: color 0.15s, background 0.15s;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-    text-decoration: none;
+    background: none; border: none; color: var(--text-secondary); font-family: inherit;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 6px 28px; cursor: pointer; border-radius: var(--radius-md); /* 12px */
+    transition: color 0.2s, background 0.2s; text-decoration: none;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
   }
-  .nav-btn:hover { color: var(--text-tertiary); background: rgba(128,128,128,0.08); }
   .nav-btn.active { color: var(--accent); }
-  .nav-btn .nav-icon { font-size: 20px; line-height: 1; }
+  .nav-btn .nav-icon { font-size: 22px; line-height: 1; }
   .nav-btn .nav-label { font-size: 11px; letter-spacing: 1px; font-weight: bold; }
 </style>
 </head>
@@ -176,30 +129,29 @@
   <div class="library-title">🎮 我的游戏库</div>
   <div class="game-grid">
     <a href="fangkuai.html" class="game-card">
-      <div class="game-card-icon">
-        <div class="icon-block"><div></div><div></div><div></div><div></div></div>
-      </div>
+      <div class="game-card-icon"><div class="icon-block"><div></div><div></div><div></div><div></div></div></div>
       <div class="game-card-name">消方块</div>
     </a>
     <a href="othello.html" class="game-card">
-      <div class="game-card-icon">
-        <div class="icon-othello">
-          <div class="disc black"></div>
-          <div class="disc white"></div>
-        </div>
-      </div>
+      <div class="game-card-icon"><div class="icon-othello"><div class="disc black"></div><div class="disc white"></div></div></div>
       <div class="game-card-name">翻翻棋</div>
+    </a>
+    <a href="minesweeper.html" class="game-card">
+      <div class="game-card-icon"><div class="icon-emoji">💣</div></div>
+      <div class="game-card-name">扫雷</div>
+    </a>
+    <a href="memory.html" class="game-card">
+      <div class="game-card-icon"><div class="icon-emoji">🃏</div></div>
+      <div class="game-card-name">记忆翻牌</div>
     </a>
   </div>
 
   <div class="bottom-nav">
     <a class="nav-btn active" href="index.html">
-      <span class="nav-icon">🏠</span>
-      <span class="nav-label">主页</span>
+      <span class="nav-icon">🏠</span><span class="nav-label">主页</span>
     </a>
     <a class="nav-btn" href="settings.html">
-      <span class="nav-icon">☰</span>
-      <span class="nav-label">设置</span>
+      <span class="nav-icon">☰</span><span class="nav-label">设置</span>
     </a>
   </div>
 </body>

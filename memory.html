@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>记忆翻牌</title>
+<script src="theme.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  :root, [data-theme="dark"] {
+    --bg: #1a1a2e; --bg-tertiary: #1f2b4d; --bg-elevated: #2a3a66;
+    --border: #2a3a66; --text: #ffffff; --text-secondary: #7a8ab8; --text-tertiary: #cfd8f0;
+    --accent: #e94560; --accent-dark: #c73550; --overlay-bg: rgba(10, 15, 30, 0.85);
+    --toggle-off: #2a3a66; --card-back: linear-gradient(135deg, #2a3a66, #1f2b4d);
+    --card-front: #e8e8f0; --card-front-text: #1a1a2e;
+    --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px; --radius-xl: 24px;
+    --shadow-md: 0 8px 32px rgba(0,0,0,0.25);
+  }
+  [data-theme="light"] {
+    --bg: #f2f2f7; --bg-tertiary: #ffffff; --bg-elevated: #e8e8f0;
+    --border: #d8d8e2; --text: #1a1a2e; --text-secondary: #6a6a8a; --text-tertiary: #4a4a6a;
+    --accent: #e94560; --accent-dark: #c73550; --overlay-bg: rgba(245, 245, 250, 0.92);
+    --toggle-off: #c8c8d8; --card-back: linear-gradient(135deg, #d8d8e2, #c8c8d8);
+    --card-front: #ffffff; --card-front-text: #1a1a2e;
+    --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px; --radius-xl: 24px;
+    --shadow-md: 0 8px 32px rgba(0,0,0,0.1);
+  }
+  html, body { overscroll-behavior: none; overscroll-behavior-y: none; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text); display: flex; flex-direction: column;
+    align-items: center; height: 100vh; height: 100dvh; overflow: hidden;
+    user-select: none; -webkit-user-select: none; transition: background 0.3s, color 0.3s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .top-bar {
+    width: 100%; max-width: 420px; display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; padding-top: calc(10px + env(safe-area-inset-top, 0px)); flex-shrink: 0;
+  }
+  .back-btn {
+    background: var(--bg-tertiary); border: 1.5px solid var(--border); color: var(--text-tertiary);
+    border-radius: var(--radius-md); height: 40px; line-height: 40px; padding: 0 14px;
+    font-size: 16px; font-weight: bold; cursor: pointer; text-decoration: none;
+    min-width: 44px; text-align: center; transition: transform 0.15s;
+  }
+  .back-btn:active { transform: scale(0.94); }
+  .score-display { font-size: 22px; font-weight: bold; color: var(--accent); letter-spacing: 1px; }
+  .score-display .label { font-size: 12px; color: var(--text-secondary); font-weight: normal; margin-right: 4px; }
+  .menu-btn {
+    background: var(--bg-tertiary); border: 1.5px solid var(--border); color: var(--text-tertiary);
+    border-radius: var(--radius-md); width: 44px; height: 40px; font-size: 18px; font-weight: bold;
+    cursor: pointer; display: flex; justify-content: center; align-items: center; transition: transform 0.15s; padding: 0;
+  }
+  .menu-btn:active { transform: scale(0.94); }
+
+  .game-container { flex: 1; display: flex; justify-content: center; align-items: center; width: 100%; padding: 10px; min-height: 0; position: relative; }
+
+  #board { display: grid; gap: 8px; perspective: 1000px; margin: 0 auto; }
+  .card {
+    aspect-ratio: 1 / 1; position: relative; cursor: pointer; transform-style: preserve-3d;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s; border-radius: var(--radius-md);
+  }
+  .card.flipped { transform: rotateY(180deg); }
+  .card.matched { pointer-events: none; opacity: 0.3; }
+  
+  .card-face {
+    position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
+    border-radius: var(--radius-md); display: flex; justify-content: center; align-items: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 4px; text-align: center;
+  }
+  .card-back { background: var(--card-back); border: 1.5px solid var(--border); font-size: 24px; color: rgba(255,255,255,0.2); }
+  [data-theme="light"] .card-back { color: rgba(0,0,0,0.1); }
+  .card-front {
+    background: var(--card-front); transform: rotateY(180deg); color: var(--card-front-text);
+    font-weight: bold; font-size: clamp(16px, 5vw, 28px); word-break: break-all;
+  }
+
+  .settings-overlay, .win-overlay {
+    position: fixed; inset: 0; background: var(--overlay-bg); backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center;
+    z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+  }
+  .win-overlay { position: absolute; border-radius: var(--radius-lg); z-index: 100; }
+  .settings-overlay.show, .win-overlay.show { opacity: 1; pointer-events: auto; }
+  
+  .settings-card, .win-card {
+    background: var(--bg-tertiary); border-radius: var(--radius-lg); padding: 24px; width: 320px;
+    max-width: 86vw; box-shadow: var(--shadow-md); border: 1.5px solid var(--border);
+    transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); text-align: center;
+  }
+  .settings-overlay.show .settings-card, .win-overlay.show .win-card { transform: scale(1); }
+  
+  .settings-title, .win-title { font-size: 20px; font-weight: bold; color: var(--accent); margin-bottom: 16px; letter-spacing: 2px; }
+  .win-title { font-size: 24px; }
+  .win-desc { font-size: 15px; color: var(--text-secondary); margin-bottom: 24px; }
+  
+  .settings-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border); font-size: 15px; color: var(--text); }
+  .settings-row:last-of-type { border-bottom: none; }
+  .settings-row.col { flex-direction: column; align-items: stretch; gap: 12px; }
+  
+  .settings-close, .btn-restart {
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark)); color: #fff; border: none;
+    border-radius: var(--radius-md); height: 44px; width: 100%; font-size: 16px; font-weight: bold;
+    cursor: pointer; margin-top: 10px; transition: transform 0.15s;
+  }
+  .settings-close:active, .btn-restart:active { transform: scale(0.96); }
+  
+  .toggle-switch {
+    position: relative; width: 46px; height: 26px; background: var(--toggle-off); border-radius: 13px; cursor: pointer; transition: background 0.2s;
+  }
+  .toggle-switch.on { background: var(--accent); }
+  .toggle-switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px; width: 22px; height: 22px;
+    background: #fff; border-radius: 50%; transition: transform 0.2s;
+  }
+  .toggle-switch.on::after { transform: translateX(20px); }
+
+  .diff-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .diff-btn {
+    flex: 1; min-width: 28%; background: var(--bg-elevated); border: 1.5px solid transparent;
+    color: var(--text-tertiary); border-radius: var(--radius-sm); padding: 10px; font-size: 13px;
+    font-weight: bold; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  }
+  .diff-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .diff-btn:active { transform: scale(0.96); }
+</style>
+</head>
+<body>
+  <div class="top-bar">
+    <a class="back-btn" href="index.html">←</a>
+    <div class="score-display"><span class="label">步数</span><span id="mem-moves">0</span></div>
+    <button class="menu-btn" onclick="openSettings()">☰</button>
+  </div>
+
+  <div class="game-container">
+    <div id="board"></div>
+    <div class="win-overlay" id="win-overlay">
+      <div class="win-card">
+        <div class="win-title">🎉 通关啦！</div>
+        <div class="win-desc">你用了 <span id="final-moves">0</span> 步</div>
+        <button class="btn-restart" onclick="startGame()">再来一局</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-overlay" id="settings-overlay">
+    <div class="settings-card">
+      <div class="settings-title">记忆翻牌设置</div>
+      <div class="settings-row">
+        <span>音效</span>
+        <div class="toggle-switch on" id="sound-toggle" onclick="toggleSound()"></div>
+      </div>
+      <div class="settings-row col">
+        <div>玩法模式</div>
+        <div class="diff-group">
+          <button class="diff-btn active" data-mode="classic" onclick="setMode('classic')">经典图案</button>
+          <button class="diff-btn" data-mode="english" onclick="setMode('english')">英语单词</button>
+          <button class="diff-btn" data-mode="math" onclick="setMode('math')">数学算式</button>
+        </div>
+      </div>
+      <div class="settings-row col">
+        <div>难度</div>
+        <div class="diff-group">
+          <button class="diff-btn active" data-diff="4x4" onclick="setDifficulty('4x4')">简单 (4×4)</button>
+          <button class="diff-btn" data-diff="4x5" onclick="setDifficulty('4x5')">困难 (4×5)</button>
+        </div>
+      </div>
+      <button class="settings-close" onclick="closeSettings()">关闭</button>
+    </div>
+  </div>
+
+<script>
+const DATA_CLASSIC = ['🍎', '🍇', '🍉', '🍒', '🍓', '🍍', '🥝', '🍋', '🍌', '🍑'];
+const DATA_ENGLISH = [
+  ['Apple', '苹果'], ['Banana', '香蕉'], ['Orange', '橙子'], 
+  ['Grape', '葡萄'], ['Lemon', '柠檬'], ['Cherry', '樱桃'], 
+  ['Peach', '桃子'], ['Melon', '甜瓜'], ['Mango', '芒果'], ['Pear', '梨']
+];
+
+let soundEnabled = localStorage.getItem('mem_sound') !== '0';
+let difficulty = localStorage.getItem('mem_diff') || '4x4';
+let gameMode = localStorage.getItem('mem_mode') || 'classic';
+
+let board = [];
+let flippedCards = [];
+let matchedCount = 0;
+let moves = 0;
+let lockBoard = false;
+
+const boardEl = document.getElementById('board');
+const movesEl = document.getElementById('mem-moves');
+const winOverlay = document.getElementById('win-overlay');
+
+let audioCtx = null;
+function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+
+function playSound(type) {
+  if (!soundEnabled || !audioCtx) return;
+  const t = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  if (type === 'flip') {
+    osc.type = 'sine'; osc.frequency.setValueAtTime(400, t);
+    osc.frequency.exponentialRampToValueAtTime(600, t + 0.1);
+    gain.gain.setValueAtTime(0.1, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+    osc.start(t); osc.stop(t + 0.1);
+  } else if (type === 'match') {
+    osc.type = 'triangle'; osc.frequency.setValueAtTime(600, t);
+    osc.frequency.setValueAtTime(800, t + 0.1);
+    gain.gain.setValueAtTime(0.15, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+    osc.start(t); osc.stop(t + 0.3);
+  } else if (type === 'win') {
+    [523, 659, 784, 1047].forEach((f, i) => {
+      const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+      o.type = 'triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.1, t + i*0.1); g.gain.exponentialRampToValueAtTime(0.01, t + i*0.1 + 0.2);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t + i*0.1); o.stop(t + i*0.1 + 0.2);
+    });
+  }
+}
+
+function generateDeck(totalPairs) {
+  let deck = [];
+  if (gameMode === 'classic') {
+    let selected = DATA_CLASSIC.slice(0, totalPairs);
+    selected.forEach(emoji => {
+      deck.push({ pairId: emoji, text: emoji }); deck.push({ pairId: emoji, text: emoji });
+    });
+  } else if (gameMode === 'english') {
+    let selected = DATA_ENGLISH.slice(0, totalPairs);
+    selected.forEach((pair, idx) => {
+      deck.push({ pairId: idx, text: pair[0] }); deck.push({ pairId: idx, text: pair[1] });
+    });
+  } else if (gameMode === 'math') {
+    let usedAnswers = new Set();
+    while(deck.length < totalPairs * 2) {
+      let a = Math.floor(Math.random() * 9) + 1;
+      let b = Math.floor(Math.random() * 9) + 1;
+      let ans = a + b;
+      if (!usedAnswers.has(ans)) {
+        usedAnswers.add(ans);
+        deck.push({ pairId: ans, text: `${a}+${b}` }); deck.push({ pairId: ans, text: `${ans}` });
+      }
+    }
+  }
+  return deck.sort(() => Math.random() - 0.5);
+}
+
+function startGame() {
+  winOverlay.classList.remove('show');
+  boardEl.innerHTML = ''; flippedCards = []; matchedCount = 0;
+  moves = 0; lockBoard = false; movesEl.innerText = '0';
+
+  let rows = difficulty === '4x4' ? 4 : 5;
+  let cols = 4;
+  let totalPairs = (rows * cols) / 2;
+  let deck = generateDeck(totalPairs);
+
+  boardEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  boardEl.style.width = `min(90vw, 380px)`;
+
+  deck.forEach((item) => {
+    const card = document.createElement('div'); card.className = 'card'; card.dataset.pairId = item.pairId;
+    const back = document.createElement('div'); back.className = 'card-face card-back'; back.innerText = '?';
+    const front = document.createElement('div'); front.className = 'card-face card-front'; front.innerText = item.text;
+    card.appendChild(back); card.appendChild(front);
+    card.addEventListener('pointerdown', () => handleFlip(card));
+    boardEl.appendChild(card);
+  });
+}
+
+function handleFlip(card) {
+  initAudio();
+  if (lockBoard || card.classList.contains('flipped') || card.classList.contains('matched')) return;
+  card.classList.add('flipped'); playSound('flip'); flippedCards.push(card);
+  if (flippedCards.length === 2) { moves++; movesEl.innerText = moves; checkMatch(); }
+}
+
+function checkMatch() {
+  const [card1, card2] = flippedCards;
+  const isMatch = card1.dataset.pairId === card2.dataset.pairId;
+  if (isMatch) {
+    setTimeout(() => {
+      card1.classList.add('matched'); card2.classList.add('matched');
+      flippedCards = []; matchedCount++; playSound('match');
+      const rows = difficulty === '4x4' ? 4 : 5;
+      if (matchedCount === (rows * 4) / 2) {
+        setTimeout(() => {
+          document.getElementById('final-moves').innerText = moves;
+          winOverlay.classList.add('show'); playSound('win');
+        }, 600);
+      }
+    }, 400); 
+  } else {
+    lockBoard = true;
+    setTimeout(() => {
+      card1.classList.remove('flipped'); card2.classList.remove('flipped');
+      flippedCards = []; lockBoard = false;
+    }, 800);
+  }
+}
+
+function openSettings() { document.getElementById('settings-overlay').classList.add('show'); }
+function closeSettings() { document.getElementById('settings-overlay').classList.remove('show'); }
+function toggleSound() {
+  soundEnabled = !soundEnabled; localStorage.setItem('mem_sound', soundEnabled ? '1' : '0');
+  document.getElementById('sound-toggle').classList.toggle('on', soundEnabled);
+}
+function setMode(mode) {
+  if (gameMode === mode) return;
+  gameMode = mode; localStorage.setItem('mem_mode', mode);
+  document.querySelectorAll('[data-mode]').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+  closeSettings(); setTimeout(startGame, 200);
+}
+function setDifficulty(diff) {
+  if (difficulty === diff) return;
+  difficulty = diff; localStorage.setItem('mem_diff', diff);
+  document.querySelectorAll('[data-diff]').forEach(btn => btn.classList.toggle('active', btn.dataset.diff === diff));
+  closeSettings(); setTimeout(startGame, 200);
+}
+
+document.getElementById('sound-toggle').classList.toggle('on', soundEnabled);
+document.querySelectorAll('[data-mode]').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === gameMode));
+document.querySelectorAll('[data-diff]').forEach(btn => btn.classList.toggle('active', btn.dataset.diff === difficulty));
+
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => {
+  const now = Date.now();
+  if (now - lastTouchEnd <= 350) e.preventDefault();
+  lastTouchEnd = now;
+}, { passive: false });
+
+startGame();
+</script>
+</body>
+</html>
